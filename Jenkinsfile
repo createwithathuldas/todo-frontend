@@ -1,67 +1,59 @@
 pipeline {
     agent any
 
-    environment {
-        REGISTRY = 'docker.io'
-        REGISTRY_CREDENTIALS = 'dockerhub-credentials'
-        IMAGE_NAME = 'todo-frontend'
-        IMAGE_TAG = "${BUILD_NUMBER}"
-        DOCKER_IMAGE = "${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-        DOCKER_IMAGE_LATEST = "${REGISTRY}/${IMAGE_NAME}:latest"
-        NODE_ENV = 'production'
-    }
-
     stages {
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
-                echo 'Checking out code...'
+                echo 'Checking out code from SCM...'
                 checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Checkout') {
             steps {
-                echo 'Building Docker image...'
-                sh 'docker build -t ${DOCKER_IMAGE} -t ${DOCKER_IMAGE_LATEST} .'
+                echo 'Code checkout complete.'
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Debug') {
             steps {
-                echo 'Pushing Docker image to registry...'
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${DOCKER_IMAGE}
-                        docker push ${DOCKER_IMAGE_LATEST}
-                        docker logout
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to Staging') {
-            when {
-                branch 'develop'
-            }
-            steps {
-                echo 'Deploying to staging environment...'
+                echo 'Debugging environment info...'
                 sh '''
-                    docker pull ${DOCKER_IMAGE_LATEST}
-                    docker-compose -f docker-compose.staging.yml up -d frontend
+                    node -v || echo 'node not installed on host'
+                    npm -v || echo 'npm not installed on host'
+                    pwd
+                    ls -la || dir
                 '''
             }
         }
 
-        stage('Deploy to Production') {
-            when {
-                branch 'main'
-            }
+        stage('Build') {
             steps {
-                echo 'Deploying to production environment...'
+                echo 'Building frontend application...'
                 sh '''
-                    docker pull ${DOCKER_IMAGE_LATEST}
-                    docker-compose -f docker-compose.prod.yml up -d frontend
+                    npm ci
+                    npm run build
+                '''
+            }
+        }
+
+        stage('Build Docker') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t todo-frontend:latest .'
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                echo 'Starting frontend container...'
+                sh '''
+                    docker stop todo-frontend-container || true
+                    docker rm todo-frontend-container || true
+                    docker run -d --name todo-frontend-container \
+                      --network todo-network \
+                      -p 80:80 \
+                      todo-frontend:latest
                 '''
             }
         }
@@ -70,7 +62,6 @@ pipeline {
     post {
         always {
             echo 'Pipeline execution completed.'
-            cleanWs()
         }
         success {
             echo 'Frontend build and deployment successful!'
