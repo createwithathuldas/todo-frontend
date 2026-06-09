@@ -1,0 +1,50 @@
+<section class="todo-page">
+  <header class="todo-header">
+    <div>
+      <h1>Todo tasks</h1>
+      <p>View, complete, or delete tasks from your list.</p>
+    </div>
+    <div class="todo-input-group">
+      <input
+        type="text"
+        [value]="newTask"
+        (input)="newTask = $event.target.value"
+        placeholder="Enter a new task"
+        [disabled]="loading"
+      />
+      <button type="button" (click)="addTodo()" [disabled]="loading || !newTask.trim()">
+        Add
+      </button>
+    </div>
+  </header>
+
+  <div *ngIf="error" class="error-banner">{{ error }}</div>
+
+  <div *ngIf="loading" class="loading-label">Loading...</div>
+
+  <ul class="todo-list" *ngIf="!loading && todos.length">
+    <li *ngFor="let todo of todos; trackBy: trackById" [class.completed]="todo.isCompleted">
+      <div class="todo-item">
+        <div class="task-details">
+          <strong>{{ todo.task }}</strong>
+          <span class="meta">Created {{ todo.createdAt | date: 'short' }}</span>
+          <span class="status">{{ todo.isCompleted ? 'Completed' : 'Open' }}</span>
+        </div>
+        <div class="buttons">
+          <button type="button" class="complete-btn" (click)="toggleComplete(todo)">
+            {{ todo.isCompleted ? 'Undo' : 'Mark complete' }}
+          </button>
+          <button type="button" class="delete-btn" (click)="deleteTodo(todo.id)">
+            Delete
+          </button>
+        </div>
+      </div>
+    </li>
+  </ul>
+
+  @if (!loading && todos.length) {
+    <div class="footer">
+      <span>{{ todos.length }} {{ todos.length === 1 ? 'task' : 'tasks' }}</span>
+    </div>
+  }
+</section>

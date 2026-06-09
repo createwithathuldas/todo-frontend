@@ -1,0 +1,93 @@
+<div class="home-container">
+  <!-- Top Authentication Controls -->
+  <div class="top-bar">
+    <div *ngIf="!currentUser" class="auth-buttons">
+      <a routerLink="/login"><button type="button">Login</button></a>
+      <a routerLink="/register"><button type="button">Register</button></a>
+    </div>
+    <div *ngIf="currentUser" class="auth-user-info">
+      <span>Logged in as: {{ currentUser.name }}</span>
+      <button type="button" (click)="logout()">Logout</button>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- Tasks List Section -->
+  <div class="tasks-section">
+    <h3>Tasks</h3>
+    <div *ngIf="error" class="error-msg">
+      <span>Error: {{ error }}</span>
+    </div>
+
+    <ul *ngIf="todos.length > 0" class="task-list">
+      <li *ngFor="let todo of getPaginatedTodos(); trackBy: trackById" class="task-item">
+        <div class="task-row">
+          <div class="task-content">
+            <input
+              type="checkbox"
+              [checked]="todo.isCompleted"
+              (change)="markAsDone(todo)"
+              [disabled]="!currentUser"
+            />
+            <span [style.textDecoration]="todo.isCompleted ? 'line-through' : 'none'">
+              {{ todo.task }}
+            </span>
+          </div>
+          <button
+            type="button"
+            (click)="deleteTask(todo.id)"
+            [disabled]="!currentUser"
+          >
+            Delete
+          </button>
+        </div>
+        <div class="task-meta-row">
+          <small>
+            Created: {{ todo.createdAt | date: 'short' }} 
+            <span *ngIf="todo.isCompleted"> / Completed: {{ todo.completedAt | date: 'short' }}</span>
+          </small>
+        </div>
+      </li>
+    </ul>
+
+    <p *ngIf="todos.length === 0" class="empty-msg">No tasks available.</p>
+
+    <!-- Pagination Numbers -->
+    <div *ngIf="getPageNumbers().length > 1" class="pagination">
+      <span>Pages: </span>
+      <button
+        type="button"
+        *ngFor="let page of getPageNumbers()"
+        (click)="setPage(page)"
+        [disabled]="currentPage === page"
+        class="page-btn"
+      >
+        {{ page }}
+      </button>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- Add New Task Section -->
+  <div class="add-section">
+    <h4>Add New Task</h4>
+    <form (ngSubmit)="addTask()" class="add-task-form">
+      <input
+        type="text"
+        name="newTaskTitle"
+        [(ngModel)]="newTaskTitle"
+        placeholder="Enter task text"
+        [disabled]="!currentUser"
+        required
+      />
+      <button
+        type="submit"
+        [disabled]="!currentUser || !newTaskTitle.trim() || loading"
+      >
+        Add
+      </button>
+    </form>
+  </div>
+</div>
