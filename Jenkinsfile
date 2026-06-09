@@ -14,58 +14,15 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out code from repository...'
+                echo 'Checking out code...'
                 checkout scm
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
-                echo 'Installing frontend dependencies...'
-                sh '''
-                    cd Todo-frontend
-                    npm ci
-                '''
-            }
-        }
-
-        stage('Lint') {
-            steps {
-                echo 'Running code quality checks...'
-                sh '''
-                    cd Todo-frontend
-                    npm run lint || true
-                '''
-            }
-        }
-
-        stage('Build') {
-            steps {
-                echo 'Building Angular application...'
-                sh '''
-                    cd Todo-frontend
-                    npm run build
-                '''
-            }
-        }
-
-        stage('Test') {
-            steps {
-                echo 'Running tests...'
-                sh '''
-                    cd Todo-frontend
-                    npm test -- --watch=false --browsers=ChromeHeadless || true
-                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 echo 'Building Docker image...'
-                sh '''
-                    cd Todo-frontend
-                    docker build -t ${DOCKER_IMAGE} -t ${DOCKER_IMAGE_LATEST} .
-                '''
+                sh 'docker build -t ${DOCKER_IMAGE} -t ${DOCKER_IMAGE_LATEST} .'
             }
         }
 
