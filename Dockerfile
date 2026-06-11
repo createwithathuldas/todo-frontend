@@ -21,7 +21,7 @@ FROM nginx:alpine
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application to nginx
-COPY --from=build /app/dist/Todo-frontend /usr/share/nginx/html
+COPY --from=build /app/dist/Todo-frontend/browser /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80

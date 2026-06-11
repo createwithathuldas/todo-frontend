@@ -1,73 +1,48 @@
 pipeline {
     agent any
-
+    environment {
+        ACR     = 'athulacr'
+        RG      = 'todo-rg'
+        AKS     = 'todo-aks'
+        IMAGE   = 'todo-frontend'
+        AZ_CLIENT_ID     = credentials('azure-client-id')
+        AZ_CLIENT_SECRET = credentials('azure-client-secret')
+        AZ_TENANT_ID     = credentials('azure-tenant-id')
+    }
     stages {
-        stage('Checkout SCM') {
-            steps {
-                echo 'Checking out code from SCM...'
-                checkout scm
-            }
-        }
-
         stage('Checkout') {
+            steps { checkout scm }
+        }
+        stage('Build image') {
             steps {
-                echo 'Code checkout complete.'
+                bat 'docker build --platform linux/amd64 -t %ACR%.azurecr.io/%IMAGE%:%BUILD_NUMBER% -t %ACR%.azurecr.io/%IMAGE%:latest .'
             }
         }
-
-        stage('Debug') {
+        stage('Login to Azure') {
             steps {
-                echo 'Debugging environment info...'
-                sh '''
-                    node -v || echo 'node not installed on host'
-                    npm -v || echo 'npm not installed on host'
-                    pwd
-                    ls -la || dir
-                '''
+                bat 'az login --service-principal -u %AZ_CLIENT_ID% -p %AZ_CLIENT_SECRET% --tenant %AZ_TENANT_ID%'
+                bat 'az acr login -n %ACR%'
             }
         }
-
-        stage('Build') {
+        stage('Push to ACR') {
             steps {
-                echo 'Building frontend application...'
-                sh '''
-                    npm ci
-                    npm run build
-                '''
+                bat 'docker push %ACR%.azurecr.io/%IMAGE%:%BUILD_NUMBER%'
+                bat 'docker push %ACR%.azurecr.io/%IMAGE%:latest'
             }
         }
-
-        stage('Build Docker') {
+        stage('Deploy to AKS') {
             steps {
-                echo 'Building Docker image...'
-                sh 'docker build -t todo-frontend:latest .'
-            }
-        }
-
-        stage('Run Container') {
-            steps {
-                echo 'Starting frontend container...'
-                sh '''
-                    docker stop todo-frontend-container || true
-                    docker rm todo-frontend-container || true
-                    docker run -d --name todo-frontend-container \
-                      --network todo-network \
-                      -p 80:80 \
-                      todo-frontend:latest
-                '''
+                bat 'az aks get-credentials -n %AKS% -g %RG% --overwrite-existing'
+                powershell '(Get-Content k8s/03-frontend.yaml) -replace "athulacr", $env:ACR | Set-Content $env:TEMP\\03-frontend.yaml'
+                bat 'kubectl apply -f %TEMP%\\03-frontend.yaml'
+                bat 'kubectl set image deployment/product-frontend product-frontend=%ACR%.azurecr.io/%IMAGE%:%BUILD_NUMBER%'
+                bat 'kubectl rollout status deployment/product-frontend --timeout=120s'
             }
         }
     }
-
     post {
-        always {
-            echo 'Pipeline execution completed.'
-        }
-        success {
-            echo 'Frontend build and deployment successful!'
-        }
-        failure {
-            echo 'Frontend build or deployment failed!'
-        }
+        success { echo "product-frontend ${BUILD_NUMBER} deployed to AKS." }
+        failure { echo 'product-frontend pipeline failed.' }
+        always  { bat 'az logout || exit 0' }
     }
 }
